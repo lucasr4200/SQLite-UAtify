@@ -96,7 +96,54 @@ def login(databaseFile):
         login(databaseFile)
 
 
-#
+def startSession(id):
+    connection = sqlite3.connect(databaseFile)
+    cur = connection.cursor()
+    # What to do about end time in start session function?
+    # How to get unique session number?
+    # What to do about end date initially?
+    #connection.execute(f"INSERT into sessions(uid, sno, start, end) VALUES (?,?,?,?)", (id, sno, sqlite3.Date('now')))
+    #connection.commit()
+    #connection.close()
+
+    return
+
+
+def endSession(id):
+    connection = sqlite3.connect(databaseFile)
+    cur = connection.cursor()
+
+    query = f"SELECT s.sno, s.start FROM sessions s, users u" \
+            f" WHERE s.uid = u.uid;"
+    cur.execute(query)
+    y = cur.fetchall()
+    print("yyyyyyy: ", y)
+
+
+    updateSessions(connection, (id,y[0][1], y[0][2], y[0][3]))
+
+    #?????
+    #connection.execute(f"INSERT into sessions(uid, sno, start, end) VALUES (?,?,?,?)", (uid, sno, ?, sqlite3.Date('now')))
+    #connection.commit()
+
+    connection.close()
+
+
+def updateSessions(connection, data):
+    # function to update a table
+
+    query = """ UPDATE sessions
+                set uid = ?,
+                    sno = ?,
+                    start = ?,
+                    end = ?
+                WHERE sno = ?
+    """
+    cur = connection.cursor()
+    cur.execute(query, data)
+    connection.commit()
+
+
 if __name__ == '__main__':
     databaseFile = "/Users/lucasrasmusson/Documents/CMPUT291/miniProject1/miniProject1.db"
     createDatabaseConnection(databaseFile)
@@ -109,6 +156,11 @@ if __name__ == '__main__':
 
     print("name: ", data[0][1])
 
+    #Start session here
+    print("Time to start the session #1")
+    print("data[0][0]: ", data[0][0])
+    startSession(data[0][0])
+
     if data[1] == "user":
         loginType = "user"
     else:
@@ -118,6 +170,9 @@ if __name__ == '__main__':
     while 1:
         randomInput = input("Whatever input:")
         if randomInput == "logout":
+            endSession(data[0][0])
+            # end session here
+
             logout = True
         if randomInput == "exit":
             # end session here as well
@@ -125,6 +180,13 @@ if __name__ == '__main__':
         print("logout: ", logout)
         if logout:
             print("Thank you for using UAtify!")
-            login(databaseFile)
+            data = login(databaseFile)
+            if data[1] == "user":
+                loginType = "user"
+            else:
+                loginType = "artist"
+
+            # Start session here
+            print("Time to start the session 2")
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
