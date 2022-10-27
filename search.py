@@ -203,30 +203,24 @@ def displaySearchInterface(keywords, results, collumns):
         # Check if the command is a name or title in the results
         for row in results[index:index+5]:
             if(command[0:6] == "artist" and command[7:] == str(row[1])):
-                clearScreen()
-                print("You selected artist with ID " + str(row[1]))
-                closeAndExit()
+                viewArtist(row[1])
             if(command[0:4] == "song" and command[5:] == str(row[1])):
                 clearScreen()
                 print("You Selected song with ID " + str(row[1]))
                 closeAndExit()
             if(command[0:8] == "playlist" and command[9:] == str(row[1])):
-                clearScreen()
-                print("You Selected playlist with ID " + str(row[1]))
-                closeAndExit()
+                viewPlaylist(row[1])
 
 
 def main():
     global connection, cursor
     createDatabaseConnection('./miniProject1.db')
 
-    x = input()
-    viewArtist(x)
-    # x = input("Search songs or artists?\n\t/s or /a?\n")
-    # if(x == "/s"):
-    #     searchSongs()
-    # elif(x == "/a"):
-    #     searchArtists()
+    x = input("Search songs or artists?\n\t/s or /a?\n")
+    if(x == "/s"):
+        searchSongs()
+    elif(x == "/a"):
+        searchArtists()
 
     closeAndExit()
 
