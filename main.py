@@ -145,7 +145,7 @@ def updateSessions(connection, data):
 
 
 if __name__ == '__main__':
-    databaseFile = "/Users/lucasrasmusson/Documents/CMPUT291/miniProject1/miniProject1.db"
+    databaseFile = "./miniProject1.db"
     createDatabaseConnection(databaseFile)
 
     data = login(databaseFile)
