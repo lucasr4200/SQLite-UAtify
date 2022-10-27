@@ -33,6 +33,72 @@ def closeAndExit():
     exit()
 
 
+# Takes a playlist ID and displays all songs in the playlist
+# Assumes cursor and connection are variables that connect to the database
+def viewPlaylist(pid):
+    global cursor, connection
+
+    # Get the playlist from the DB
+    query = '''
+    SELECT songs.sid, songs.title, songs.duration
+    FROM plinclude
+    INNER JOIN songs ON plinclude.sid = songs.sid
+    WHERE pid = ?;'''
+
+    cursor.execute(query, [str(pid)])
+    results = cursor.fetchall()
+
+    # Print the interface
+    clearScreen()
+    print("Songs in playlist " + str(pid))
+    for row in results:
+        print("ID: " + str(row[0]) + "\t " + row[1] + "\t  " + str(row[2]) + 's')
+    print("\nSelect a song by typing it's ID, or /exit to exit the program")
+
+    # Get and process input
+    while(True):
+        command = input("./Uatify$ ")
+        if(command == "/exit"):
+            closeAndExit()
+        for row in results:
+            if(command == str(row[0])):
+                print("You selected: " + row[1])
+                closeAndExit()
+
+
+# Takes an artist's ID and displays all their songs
+# Assumes cursor and connection are variables that connect to the database
+def viewArtist(aid):
+    global cursor, connection
+
+    # Get the artist's songs from the DB
+    query = '''
+    SELECT artists.name, songs.sid, songs.title, songs.duration
+    FROM artists
+    INNER JOIN perform ON artists.aid = perform.aid
+    INNER JOIN songs ON perform.sid = songs.sid
+    WHERE artists.aid = ?;'''
+
+    cursor.execute(query, [str(aid)])
+    results = cursor.fetchall()
+
+    # Print the interface
+    clearScreen()
+    print("Songs by artist " + results[0][0]) # First collumn of every row has artist name
+    for row in results:
+        print("ID: " + str(row[1]) + "\t " + row[2] + "\t  " + str(row[3]) + 's')
+    print("\nSelect a song by typing it's ID, or /exit to exit the program")
+
+    # Get and process input
+    while(True):
+        command = input("./Uatify$ ")
+        if(command == "/exit"):
+            closeAndExit()
+        for row in results:
+            if(command == str(row[1])):
+                print("You selected: " + row[2])
+                closeAndExit()
+
 # Takes input, and creates a query to search songs and playlists for matching keywords
 # Calls DisplayResults() to display the query's results
 # Assumes connection, cursor are variables that connect to the database
@@ -153,11 +219,14 @@ def displaySearchInterface(keywords, results, collumns):
 def main():
     global connection, cursor
     createDatabaseConnection('./miniProject1.db')
-    x = input("Search songs or artists?\n\t/s or /a?\n")
-    if(x == "/s"):
-        searchSongs()
-    elif(x == "/a"):
-        searchArtists()
+
+    x = input()
+    viewArtist(x)
+    # x = input("Search songs or artists?\n\t/s or /a?\n")
+    # if(x == "/s"):
+    #     searchSongs()
+    # elif(x == "/a"):
+    #     searchArtists()
 
     closeAndExit()
 
