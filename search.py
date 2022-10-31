@@ -4,6 +4,7 @@ import sqlite3
 
 connection = None
 cursor = None
+uid = 'u05'
 
 def clearScreen():
     # Clear the output
@@ -62,8 +63,7 @@ def viewPlaylist(pid):
             closeAndExit()
         for row in results:
             if(command == str(row[0])):
-                print("You selected: " + row[1])
-                closeAndExit()
+                viewSongs(row[0])
 
 
 # Takes an artist's ID and displays all their songs
@@ -96,8 +96,7 @@ def viewArtist(aid):
             closeAndExit()
         for row in results:
             if(command == str(row[1])):
-                print("You selected: " + row[2])
-                closeAndExit()
+                viewSongs(row[1])
 
 # Takes input, and creates a query to search songs and playlists for matching keywords
 # Calls DisplayResults() to display the query's results
@@ -105,8 +104,11 @@ def viewArtist(aid):
 def searchSongs():
     global connection, cursor
 
-    keywords = input("Search keywords:\n").split()
-
+    # Get the input, don't accept empty input
+    keywords = ''
+    while(keywords == ''):
+        keywords = input("Search keywords:\n").strip()
+    keywords = keywords.split()
 
     # Build the Query to search for songs
     query = "WITH "
@@ -140,7 +142,11 @@ def searchSongs():
 def searchArtists():
     global connection, cursor
 
-    keywords = input("Search keywords:\n").split()
+    # Get the input, don't accept empty input
+    keywords = ''
+    while(keywords == ''):
+        keywords = input("Search keywords:\n").strip()
+    keywords = keywords.split()
 
     query = "WITH "
     for i in range(len(keywords)):
@@ -169,7 +175,7 @@ def searchArtists():
 # Creates the interface to view search results
 # Assume Cursor has a query with collumns (type, id, title, duration)
 #   keywords: the list of keywords the user searched for
-#   results: the results of the query in a list
+#   results: array of results of the search query
 #   cols: the collumns of the query
 def displaySearchInterface(keywords, results, collumns):
 
@@ -204,17 +210,163 @@ def displaySearchInterface(keywords, results, collumns):
         for row in results[index:index+5]:
             if(command[0:6] == "artist" and command[7:] == str(row[1])):
                 viewArtist(row[1])
+
             if(command[0:4] == "song" and command[5:] == str(row[1])):
-                clearScreen()
-                print("You Selected song with ID " + str(row[1]))
-                closeAndExit()
+                viewSongs(row[1])
+
             if(command[0:8] == "playlist" and command[9:] == str(row[1])):
                 viewPlaylist(row[1])
+
+
+# Takes a song ID and prints the id, title, performing artists, and playlists
+# Throws: TypeError if sid does not exist in database
+def printSongsInfo(sid):
+
+    # First get the title & duration
+    query = "SELECT title, duration FROM songs WHERE sid=?;"
+    cursor.execute(query, [sid])
+
+    title, duration = cursor.fetchone()
+
+    # Get all the performing artists
+    query = '''
+        SELECT artists.name
+        FROM perform
+        INNER JOIN artists ON perform.aid = artists.aid
+        WHERE perform.sid = ?;'''
+
+    cursor.execute(query, [sid])
+    artists = cursor.fetchall()
+
+    # Then get all the matching playlists
+    query = '''
+        SELECT playlists.title
+        FROM plinclude
+        INNER JOIN playlists ON plinclude.pid = playlists.pid
+        WHERE plinclude.sid = ?;'''
+
+    cursor.execute(query, [sid])
+
+    # Display it all
+    print(title + "\nID: " + str(sid) + "\nPerforming artists:")
+    for row in artists:
+        print('\t' + row[0])
+    print("Featured in playlists:")
+    for row in cursor.fetchall():
+        print('\t' + row[0])
+
+    return
+
+
+# Display's all of a user's playlists,
+# and allows them to add a song to one, or create a new playlist
+def addSongToPlaylist(sid, uid):
+
+    # Get this user's playlists
+    query = "SELECT pid, title FROM playlists WHERE uid=?;"
+    cursor.execute(query, [uid,])
+    playlists = cursor.fetchall()
+
+    # Output the interface
+    clearScreen()
+    print("Add song with id " + str(sid) + " to a playlist.\nYour playlists are dispayed below")
+    for row in playlists:
+        print('\tID: ' + str(row[0]) + '  ' + row[1])
+    print("\nType a song ID to add the song to a playlist, or\n\t/new [name] to create a new playlist with this song\n\t/cancel to cancel")
+
+    # Get user input
+    while(True):
+        command = input("./Uatify$ ")
+        if(command == "/cancel"):
+            return
+        elif(command[:4] == "/new"):
+            # Must first create a new playlist ID
+            query = "SELECT MAX(pid) FROM playlists"
+            cursor.execute(query)
+            newPID = cursor.fetchone()[0] + 1
+
+            query = "INSERT INTO playlists VALUES (?, ?, ?)"
+            cursor.execute(query, [ newPID, command[5:], uid ])
+
+            query = "INSERT INTO plinclude VALUES (?, ?, 1)"
+            cursor.execute(query, [ newPID, sid ])
+
+            connection.commit()
+            print("New playlist created with this song!")
+            return 
+
+
+        # Check if the input matches a playlist ID
+        # If it does, add the song to the playlist
+        for row in playlists:
+            if(command == str(row[0])):
+
+                # First check that the song is not in the playlist already
+                query = " SELECT EXISTS( SELECT * FROM plinclude WHERE pid=? AND sid=?)"
+                cursor.execute(query, [ row[0], sid ])
+
+                if(cursor.fetchone()[0] == 1):
+                    print("That song is already in this playlist!")
+                    continue
+
+
+                # Get the number of songs in the playlist, for the sorder
+                query = "SELECT MAX(sorder) FROM plinclude WHERE pid=?"
+                cursor.execute(query, [ row[0] ])
+
+                sorder = cursor.fetchone()[0] + 1
+
+                # Update the database
+                query = "INSERT INTO plinclude VALUES (?, ?, ?)"
+                cursor.execute(query, [ row[0], sid, sorder])
+                connection.commit()
+
+                print("Song successfully added to playlist!\n")
+                return
+
+
+
+# Given a song's id, promts the viewer to either
+# listen to it, see more info, or add it to a playlist
+# Throws a TypeError if sid does not exist in db
+def viewSongs(sid):
+    global uid # TODO: GET THE USER'S UID
+    
+    cursor.execute("SELECT title FROM songs WHERE sid=?", [sid,])
+    title = cursor.fetchone()[0]
+
+    prompt = '''\nWhat would you like to do?
+        /listen to play it
+        /info to see information about it
+        /playlist to add it to a playlist
+        /exit to exit'''
+
+    clearScreen()
+    print("You Selected: " + title + prompt)
+
+    # Get and process user input
+    while(True):
+        command = input("./Uatify$ ")
+        if(command == "/listen"):
+            clearScreen()
+            print("♪ ♪ ♪ ♪")
+            print("Wow that sure was good!")
+            closeAndExit()
+        elif(command == "/info"):
+            clearScreen()
+            printSongsInfo(sid)
+            print(prompt)
+        elif(command == "/playlist"):
+            addSongToPlaylist(sid, uid)
+            print("You selected: " + title + prompt)
+        elif(command == "/exit"):
+            closeAndExit()
 
 
 def main():
     global connection, cursor
     createDatabaseConnection('./miniProject1.db')
+
 
     x = input("Search songs or artists?\n\t/s or /a?\n")
     if(x == "/s"):
