@@ -2,12 +2,7 @@
 import sqlite3
 from sqlite3 import Error
 
-import artist
-
-
-
-
-
+#import artist
 
 # Creates a database connection
 def createDatabaseConnection(databaseFile):
@@ -18,6 +13,8 @@ def createDatabaseConnection(databaseFile):
         print(error)
     finally:
         if connection:
+            return connection
+        else:
             connection.close()
 
 
@@ -91,7 +88,6 @@ def login(databaseFile):
         connection.close()
 
         return login(databaseFile)
-
     else:
         print("Neither answer selected")
         login(databaseFile)
