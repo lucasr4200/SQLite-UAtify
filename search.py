@@ -4,10 +4,27 @@ import sqlite3
 
 connection = None
 cursor = None
-uid = 'u05'
+uid = None
 
+
+# Below function is important for any program that imports search.py
+
+# Initialises the global variables connection and cursor in this file
+#   Use this to make the functions in this file callable from another file
+# Without setupSearch(), connection and cursor are None
+#   which causes crashes when using any function from this file
+def setupSearch(con, cur, userid):
+    global connection, cursor, uid
+
+    connection = con
+    cursor = cur
+    uid = userid
+
+    return
+
+
+# Clears the output in the terminal
 def clearScreen():
-    # Clear the output
     if(os.name == "nt"):
         os.system('cls')
     else:
@@ -15,21 +32,9 @@ def clearScreen():
     return
 
 
-# Creates a database connection
-def createDatabaseConnection(databaseFile):
-    global connection, cursor
-
-    connection = sqlite3.connect(databaseFile)
-    cursor = connection.cursor()
-    
-    cursor.execute(' PRAGMA foreign_keys=ON; ')
-    connection.commit()
-
-    return
-
-
 # Closes the connection to the DB and exits the program
 def closeAndExit():
+    global connection
     connection.close()
     exit()
 
@@ -98,6 +103,7 @@ def viewArtist(aid):
             if(command == str(row[1])):
                 viewSongs(row[1])
 
+
 # Takes input, and creates a query to search songs and playlists for matching keywords
 # Calls DisplayResults() to display the query's results
 # Assumes connection, cursor are variables that connect to the database
@@ -107,7 +113,7 @@ def searchSongs():
     # Get the input, don't accept empty input
     keywords = ''
     while(keywords == ''):
-        keywords = input("Search keywords:\n").strip()
+        keywords = input("Search keywords: ").strip()
     keywords = keywords.split()
 
     # Build the Query to search for songs
@@ -145,7 +151,7 @@ def searchArtists():
     # Get the input, don't accept empty input
     keywords = ''
     while(keywords == ''):
-        keywords = input("Search keywords:\n").strip()
+        keywords = input("Search keywords: ").strip()
     keywords = keywords.split()
 
     query = "WITH "
@@ -221,6 +227,7 @@ def displaySearchInterface(keywords, results, collumns):
 # Takes a song ID and prints the id, title, performing artists, and playlists
 # Throws: TypeError if sid does not exist in database
 def printSongsInfo(sid):
+    global connection, cursor
 
     # First get the title & duration
     query = "SELECT title, duration FROM songs WHERE sid=?;"
@@ -261,6 +268,7 @@ def printSongsInfo(sid):
 # Display's all of a user's playlists,
 # and allows them to add a song to one, or create a new playlist
 def addSongToPlaylist(sid, uid):
+    global connection, cursor
 
     # Get this user's playlists
     query = "SELECT pid, title FROM playlists WHERE uid=?;"
@@ -330,7 +338,7 @@ def addSongToPlaylist(sid, uid):
 # listen to it, see more info, or add it to a playlist
 # Throws a TypeError if sid does not exist in db
 def viewSongs(sid):
-    global uid # TODO: GET THE USER'S UID
+    global connection, cursor, uid # TODO: GET THE USER'S UID
     
     cursor.execute("SELECT title FROM songs WHERE sid=?", [sid,])
     title = cursor.fetchone()[0]
@@ -363,11 +371,14 @@ def viewSongs(sid):
             closeAndExit()
 
 
-def main():
-    global connection, cursor
-    createDatabaseConnection("/Users/lucasrasmusson/Documents/CMPUT291/miniProject1/miniProject1.db")
+if __name__ == "__main__":
+    connection = sqlite3.connect("./miniProject1.db")
+    cursor = connection.cursor()
+    
+    cursor.execute(' PRAGMA foreign_keys=ON; ')
+    connection.commit()
 
-
+    uid = input("Which user are you? ")
     x = input("Search songs or artists?\n\t/s or /a?\n")
     if(x == "/s"):
         searchSongs()
@@ -375,6 +386,3 @@ def main():
         searchArtists()
 
     closeAndExit()
-
-if __name__ == "__main__":
-    main()
