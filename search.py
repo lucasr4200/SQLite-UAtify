@@ -117,28 +117,37 @@ def searchSongs():
     keywords = keywords.split()
 
     # Build the Query to search for songs
-    query = "WITH "
-    for i in range(len(keywords)):
-        query += "s" + str(i) + "(type, id, title, duration) AS (" + '''
-        SELECT 'song', sid, title, duration
+    query = "SELECT * FROM ("
+    for i in keywords:
+        query += '''
+        SELECT 'song' as type, sid as id, title, duration
         FROM songs
-        WHERE lower(title) LIKE \'%''' + keywords[i].lower() + '%\'\n),\n'
+        WHERE lower(title) LIKE ?
+        UNION ALL
 
-        query += "p" + str(i) + "(type, id, title, duration) AS (" + '''
-        SELECT 'playlist', playlists.pid, playlists.title, SUM(songs.duration)
+        SELECT 'playlist' as type, playlists.pid as id, playlists.title, SUM(songs.duration)
         FROM playlists
         INNER JOIN plinclude ON playlists.pid = plinclude.pid
         INNER JOIN songs ON plinclude.sid = songs.sid
-        WHERE lower(playlists.title) LIKE \'%''' + keywords[i].lower() + '%\'\nGROUP BY playlists.pid\n),\n'
+        WHERE lower(playlists.title) LIKE ?
+        UNION ALL'''
 
-    query = query[:-2] + '\n SELECT type, id, title, duration FROM (\n'
-    for i in range(len(keywords)):
-        query += "\tSELECT * FROM s" + str(i) + " UNION ALL SELECT * FROM p" + str(i) + "\nUNION ALL\n"
-    query = query[:-10] + ")\nGROUP BY type, id ORDER BY COUNT(*) DESC;"
- 
+    query = query[:-9] + ''') as t
+    WHERE t.id IS NOT NULL
+    GROUP BY t.type, t.id
+    ORDER BY COUNT(*) DESC;'''
 
-    # Execute the query and display it
-    cursor.execute(query)
+
+    # Format the keywords to work with the positional parameters
+    # We have ['key1', 'key2']
+    # We need ['%key1%', '%key1%', '%key2%', '%key2%']
+    formatted = sorted(2*keywords)
+    for i in range( len(formatted) ):
+        formatted[i] = '%' + formatted[i] + '%'
+
+
+    # Execute the query and display the results
+    cursor.execute(query, formatted)
     displaySearchInterface(keywords, cursor.fetchall(), ['type', 'id', 'title', 'duration'])
 
 
