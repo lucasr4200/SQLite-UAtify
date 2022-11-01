@@ -154,14 +154,15 @@ def searchArtists():
         keywords = input("Search keywords: ").strip()
     keywords = keywords.split()
 
+    # Create the query
     query = "SELECT 'artist', artists.aid, artists.name, artists.nationality, COUNT(DISTINCT perform.sid) as num_songs FROM ("
-    for key in keywords:
+    for i in keywords:
         query += '''
         SELECT DISTINCT artists.aid
         FROM artists
         INNER JOIN perform ON artists.aid = perform.aid
         INNER JOIN songs ON perform.sid = songs.sid
-        WHERE lower(artists.name) LIKE \'%''' + key.lower() + '%\' OR lower(songs.title) LIKE \'%' + key.lower() + '''%\'
+        WHERE lower(artists.name) LIKE ? OR lower(songs.title) LIKE ?
         UNION ALL'''
 
     query = query[:-9] + ''') as t
@@ -170,7 +171,15 @@ def searchArtists():
     GROUP BY t.aid
     ORDER BY COUNT(*)/num_songs DESC;'''
 
-    cursor.execute(query)
+
+    # Format the keywords to work with the positional parameters
+    # We have ['key1', 'key2']
+    # We need ['%key1%', '%key1%', '%key2%', '%key2%']
+    formatted = sorted(2*keywords)
+    for i in range( len(formatted) ):
+        formatted[i] = '%' + formatted[i] + '%'
+
+    cursor.execute(query, formatted)
     displaySearchInterface(keywords, cursor.fetchall(), ['type', 'id', 'name', 'nationality', 'songs'])
 
 
@@ -382,25 +391,3 @@ if __name__ == "__main__":
         searchArtists()
 
     closeAndExit()
-    # Get the input, don't accept empty input
-    # keywords = ''
-    # while(keywords == ''):
-    #     keywords = input("Search keywords: ").strip()
-    # keywords = keywords.split()
-
-    # query = "SELECT artists.aid, artists.name, artists.nationality, COUNT(DISTINCT perform.sid) as num_songs FROM ("
-    # for key in keywords:
-    #     query += '''
-    #     SELECT DISTINCT artists.aid
-    #     FROM artists
-    #     INNER JOIN perform ON artists.aid = perform.aid
-    #     INNER JOIN songs ON perform.sid = songs.sid
-    #     WHERE lower(artists.name) LIKE \'%''' + key.lower() + '%\' OR lower(songs.title) LIKE \'%' + key.lower() + '''%\'
-    #     UNION ALL'''
-
-    # query = query[:-9] + ''') as t
-    # INNER JOIN artists ON t.aid = artists.aid
-    # INNER JOIN perform ON t.aid = perform.aid
-    # GROUP BY t.aid
-    # ORDER BY COUNT(*)/num_songs DESC;'''
-    # print(query)
