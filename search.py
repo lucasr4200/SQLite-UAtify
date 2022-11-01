@@ -154,25 +154,21 @@ def searchArtists():
         keywords = input("Search keywords: ").strip()
     keywords = keywords.split()
 
-    query = "WITH "
-    for i in range(len(keywords)):
+    query = "SELECT 'artist', artists.aid, artists.name, artists.nationality, COUNT(DISTINCT perform.sid) as num_songs FROM ("
+    for key in keywords:
         query += '''
-        a''' + str(i) + '(type, aid, name, nationality) AS (' + '''
-        SELECT 'artist', artists.aid, artists.name, artists.nationality
+        SELECT DISTINCT artists.aid
         FROM artists
         INNER JOIN perform ON artists.aid = perform.aid
         INNER JOIN songs ON perform.sid = songs.sid
-        WHERE lower(artists.name) LIKE \'%''' + keywords[i].lower() + '%\' OR lower(songs.title) LIKE \'%' + keywords[i].lower() + '''%\'
-        GROUP BY artists.aid
-        ),'''
+        WHERE lower(artists.name) LIKE \'%''' + key.lower() + '%\' OR lower(songs.title) LIKE \'%' + key.lower() + '''%\'
+        UNION ALL'''
 
-    query = query[:-1] + "\nSELECT t.type, t.aid, t.name, t.nationality, COUNT(DISTINCT perform.sid) as num_songs FROM (\n"
-    for i in range(len(keywords)):
-        query += "\tSELECT * FROM a" + str(i) + " UNION ALL\n"
-    query = query[:-10] + '''\n) as t
+    query = query[:-9] + ''') as t
+    INNER JOIN artists ON t.aid = artists.aid
     INNER JOIN perform ON t.aid = perform.aid
     GROUP BY t.aid
-    ORDER BY COUNT(*)/1.0/num_songs DESC;'''
+    ORDER BY COUNT(*)/num_songs DESC;'''
 
     cursor.execute(query)
     displaySearchInterface(keywords, cursor.fetchall(), ['type', 'id', 'name', 'nationality', 'songs'])
@@ -386,3 +382,25 @@ if __name__ == "__main__":
         searchArtists()
 
     closeAndExit()
+    # Get the input, don't accept empty input
+    # keywords = ''
+    # while(keywords == ''):
+    #     keywords = input("Search keywords: ").strip()
+    # keywords = keywords.split()
+
+    # query = "SELECT artists.aid, artists.name, artists.nationality, COUNT(DISTINCT perform.sid) as num_songs FROM ("
+    # for key in keywords:
+    #     query += '''
+    #     SELECT DISTINCT artists.aid
+    #     FROM artists
+    #     INNER JOIN perform ON artists.aid = perform.aid
+    #     INNER JOIN songs ON perform.sid = songs.sid
+    #     WHERE lower(artists.name) LIKE \'%''' + key.lower() + '%\' OR lower(songs.title) LIKE \'%' + key.lower() + '''%\'
+    #     UNION ALL'''
+
+    # query = query[:-9] + ''') as t
+    # INNER JOIN artists ON t.aid = artists.aid
+    # INNER JOIN perform ON t.aid = perform.aid
+    # GROUP BY t.aid
+    # ORDER BY COUNT(*)/num_songs DESC;'''
+    # print(query)
