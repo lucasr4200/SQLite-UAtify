@@ -130,6 +130,7 @@ def searchSongs():
         INNER JOIN plinclude ON playlists.pid = plinclude.pid
         INNER JOIN songs ON plinclude.sid = songs.sid
         WHERE lower(playlists.title) LIKE ?
+        GROUP BY playlists.pid
         UNION ALL'''
 
     query = query[:-9] + ''') as t
