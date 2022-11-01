@@ -1,8 +1,21 @@
 
 import sqlite3
+import random
 from sqlite3 import Error
+import getpass
+import os
+import search
+import artist
 
-#import artist
+# Code from group member Jonathen Adsit
+def clearScreen():
+    # Clear the output
+    if(os.name == "nt"):
+        os.system('cls')
+    else:
+        os.system('clear')
+    return
+
 
 # Creates a database connection
 def createDatabaseConnection(databaseFile):
@@ -13,8 +26,6 @@ def createDatabaseConnection(databaseFile):
         print(error)
     finally:
         if connection:
-            return connection
-        else:
             connection.close()
 
 
@@ -24,7 +35,7 @@ def login(databaseFile):
 
     if userOrArtist == "u":
         uidEntered = input("Input uid: ")
-        passwordEntered = input("Input password: ")
+        passwordEntered = getpass.getpass("Input password: ")
 
         connection = sqlite3.connect(databaseFile)
         cur = connection.cursor()
@@ -43,6 +54,7 @@ def login(databaseFile):
                 login(databaseFile)
             else:
                 print("Goodbye!")
+                exit()
 
         # add to list if login type is user
         print("right before appending:", result)
@@ -98,10 +110,15 @@ def startSession(id):
     cur = connection.cursor()
     # What to do about end time in start session function?
     # How to get unique session number?
+    sno = random.randint(0,100000)
+    print("sno: ", sno)
+    print("type sno: ", type(sno))
+    print("type id: ", type(id))
+
     # What to do about end date initially?
-    #connection.execute(f"INSERT into sessions(uid, sno, start, end) VALUES (?,?,?,?)", (id, sno, sqlite3.Date('now')))
-    #connection.commit()
-    #connection.close()
+    connection.execute(f"INSERT into sessions(uid, sno, start, end) VALUES (?,?,?,?)", (id, sno, sqlite3.Date('now'), (None,)))
+    connection.commit()
+    connection.close()
 
     return
 
@@ -117,15 +134,15 @@ def endSession(id):
     print("yyyyyyy: ", y)
 
 
-    updateSessions(connection, (id,y[0][1], y[0][2], y[0][3]))
+    #updateSessions(connection, (id,y[0][1], y[0][2], y[0][3]))
 
     #?????
-    #connection.execute(f"INSERT into sessions(uid, sno, start, end) VALUES (?,?,?,?)", (uid, sno, ?, sqlite3.Date('now')))
-    #connection.commit()
+    connection.execute(f"INSERT into sessions(uid, sno, start, end) VALUES (?,?,?,?)", (id, y[0][1], y[0][2], sqlite3.Date('now')))
+    connection.commit()
 
     connection.close()
 
-
+'''
 def updateSessions(connection, data):
     # function to update a table
 
@@ -139,7 +156,7 @@ def updateSessions(connection, data):
     cur = connection.cursor()
     cur.execute(query, data)
     connection.commit()
-
+'''
 
 if __name__ == '__main__':
     databaseFile = "./miniProject1.db"
@@ -147,9 +164,11 @@ if __name__ == '__main__':
 
     data = login(databaseFile)
 
+    clearScreen()
+
     print("we made it here")
 
-    print(data)
+    print("data: ", data)
 
     print("name: ", data[0][1])
 
@@ -169,14 +188,16 @@ if __name__ == '__main__':
         if randomInput == "logout":
             endSession(data[0][0])
             # end session here
-
             logout = True
         if randomInput == "exit":
             # end session here as well
             break
-        print("logout: ", logout)
+        if randomInput == "search songs":
+            search.searchSongs()
+        if randomInput == "search artists":
+            search.searchArtists()
+
         if logout:
-            print("Thank you for using UAtify!")
             data = login(databaseFile)
             if data[1] == "user":
                 loginType = "user"
@@ -186,4 +207,4 @@ if __name__ == '__main__':
             # Start session here
             print("Time to start the session 2")
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+

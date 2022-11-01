@@ -365,7 +365,7 @@ def viewSongs(sid):
 
 def main():
     global connection, cursor
-    createDatabaseConnection('./miniProject1.db')
+    createDatabaseConnection("/Users/lucasrasmusson/Documents/CMPUT291/miniProject1/miniProject1.db")
 
 
     x = input("Search songs or artists?\n\t/s or /a?\n")
