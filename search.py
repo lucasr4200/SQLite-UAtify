@@ -5,7 +5,7 @@ import sqlite3
 connection = None
 cursor = None
 uid = None
-ses_id = None
+sno = None
 
 
 # Below function is important for any program that imports search.py
@@ -15,12 +15,12 @@ ses_id = None
 # Without setupSearch(), connection and cursor are None
 #   which causes crashes when using any function from this file
 def setupSearch(con, cur, userID, sessionID):
-    global connection, cursor, uid, ses_id
+    global connection, cursor, uid, sno
 
     connection = con
     cursor = cur
     uid = userID
-    ses_id = sessionID
+    sno = sessionID
 
     return
 
@@ -397,10 +397,29 @@ def viewSongs(sid):
 
     # Get and process user input
     while(True):
+        global uid, sno
+
         print("You Selected: " + title + prompt)
 
         command = input("./Uatify$ ")
         if(command == "/listen"):
+
+            # Get the current song's count from the session table
+            cursor.execute("SELECT cnt FROM listen WHERE uid=? AND sno=? AND sid=?", [uid, sno, sid])
+
+
+            # If the query returns None, the song is not yet in the session, so insert it into the session
+            # Otherwise, get the cnt and increment it by 1, and update the table
+            cnt = cursor.fetchone()
+            if(cnt == None):
+                cursor.execute("INSERT INTO listen VALUES (?, ?, ?, 1)", [uid, sno, sid])
+            else:
+                cnt = cnt[0] + 1
+                cursor.execute("UPDATE listen SET cnt=? WHERE uid=? AND sno=? AND sid=?", [cnt, uid, sno, sid])
+
+
+            connection.commit()
+
             clearScreen()
             print("♪ ♪ ♪ ♪")
             print("Wow that sure was good!\n")
@@ -423,7 +442,9 @@ if __name__ == "__main__":
     cursor.execute(' PRAGMA foreign_keys=ON; ')
     connection.commit()
 
-    uid = input("Which user are you? ")
+    uid = 'u02'
+    sno = 1
+    # listen to song 2 Hotline (cnt=0.9), and song 4 Power (cnt=None)
     while(True):
         x = input("Search songs, artists, or exit?\n\t/s or /a or /e?\n")
     
