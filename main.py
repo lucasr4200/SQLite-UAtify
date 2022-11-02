@@ -3,7 +3,10 @@ import random
 from sqlite3 import Error
 import getpass
 import os
-import search
+#import search
+import artists
+import sys
+
 
 
 # Code from group member Jonathen Adsit
@@ -131,7 +134,7 @@ def endSession(id, sno):
 
 
 def updateSessions(connection, data):
-    # function to update a the sessions table
+    # function to update the sessions table
 
     connection.execute(f" UPDATE sessions "
                        f"set uid = ?,"
@@ -145,9 +148,10 @@ def updateSessions(connection, data):
 
 
 if __name__ == '__main__':
+
     # Main loop for running program
     while 1:
-        databaseFile = "/Users/lucasrasmusson/Documents/CMPUT291/miniProject1/miniProject1.db"
+        databaseFile = sys.argv[1]
         createDatabaseConnection(databaseFile)
 
         # data stores id,
