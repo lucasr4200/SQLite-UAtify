@@ -3,7 +3,7 @@ import random
 from sqlite3 import Error
 import getpass
 import os
-#import search
+import search
 import artists
 import sys
 
@@ -183,9 +183,11 @@ if __name__ == '__main__':
                 break
             # search for songs using function from search.py
             if randomInput == "search songs":
+                search.setupSearch(sqlite3.connect(databaseFile), sqlite3.connect(databaseFile).cursor(), data[0][0], sno)
                 search.searchSongs()
             # search for artists using function from search.py
             if randomInput == "search artists":
+                search.setupSearch(sqlite3.connect(databaseFile), sqlite3.connect(databaseFile).cursor(), data[0][0],sno)
                 search.searchArtists()
 
             # restart loop at login if logout is true
