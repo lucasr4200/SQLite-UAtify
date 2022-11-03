@@ -4,10 +4,29 @@ import sqlite3
 
 connection = None
 cursor = None
-uid = 'u05'
+uid = None
+sno = None
 
+
+# Below function is important for any program that imports search.py
+
+# Initialises the global variables connection and cursor in this file
+#   Use this to make the functions in this file callable from another file
+# Without setupSearch(), connection and cursor are None
+#   which causes crashes when using any function from this file
+def setupSearch(con, cur, userID, sessionID):
+    global connection, cursor, uid, sno
+
+    connection = con
+    cursor = cur
+    uid = userID
+    sno = sessionID
+
+    return
+
+
+# Clears the output in the terminal
 def clearScreen():
-    # Clear the output
     if(os.name == "nt"):
         os.system('cls')
     else:
@@ -15,21 +34,9 @@ def clearScreen():
     return
 
 
-# Creates a database connection
-def createDatabaseConnection(databaseFile):
-    global connection, cursor
-
-    connection = sqlite3.connect(databaseFile)
-    cursor = connection.cursor()
-    
-    cursor.execute(' PRAGMA foreign_keys=ON; ')
-    connection.commit()
-
-    return
-
-
 # Closes the connection to the DB and exits the program
 def closeAndExit():
+    global connection
     connection.close()
     exit()
 
@@ -49,21 +56,27 @@ def viewPlaylist(pid):
     cursor.execute(query, [str(pid)])
     results = cursor.fetchall()
 
-    # Print the interface
-    clearScreen()
-    print("Songs in playlist " + str(pid))
-    for row in results:
-        print("ID: " + str(row[0]) + "\t " + row[1] + "\t  " + str(row[2]) + 's')
-    print("\nSelect a song by typing it's ID, or /exit to exit the program")
-
-    # Get and process input
+    # Print the interface and process input
     while(True):
+
+        print("Songs in playlist " + str(pid))
+        for row in results:
+            print("ID: " + str(row[0]) + "\t " + row[1] + "\t  " + str(row[2]) + 's')
+        print("\nSelect a song by typing it's ID, or /back to return to previous screen")
+
         command = input("./Uatify$ ")
-        if(command == "/exit"):
-            closeAndExit()
+
+        if(command == "/back"):
+            clearScreen()
+            return
+
+        # Check if the input matches any song IDs
         for row in results:
             if(command == str(row[0])):
+                clearScreen()
                 viewSongs(row[0])
+
+        clearScreen()
 
 
 # Takes an artist's ID and displays all their songs
@@ -82,21 +95,28 @@ def viewArtist(aid):
     cursor.execute(query, [str(aid)])
     results = cursor.fetchall()
 
-    # Print the interface
-    clearScreen()
-    print("Songs by artist " + results[0][0]) # First collumn of every row has artist name
-    for row in results:
-        print("ID: " + str(row[1]) + "\t " + row[2] + "\t  " + str(row[3]) + 's')
-    print("\nSelect a song by typing it's ID, or /exit to exit the program")
 
-    # Get and process input
+    # Print the interface and process input
     while(True):
+
+        print("Songs by artist " + results[0][0]) # First collumn of every row has artist name
+        for row in results:
+            print("ID: " + str(row[1]) + "\t " + row[2] + "\t  " + str(row[3]) + 's')
+        print("\nSelect a song by typing it's ID, or /back to return to previous screen")
+
         command = input("./Uatify$ ")
-        if(command == "/exit"):
-            closeAndExit()
+
+        if(command == "/back"):
+            clearScreen()
+            return
+
         for row in results:
             if(command == str(row[1])):
+                clearScreen()
                 viewSongs(row[1])
+
+        clearScreen()
+
 
 # Takes input, and creates a query to search songs and playlists for matching keywords
 # Calls DisplayResults() to display the query's results
@@ -107,33 +127,44 @@ def searchSongs():
     # Get the input, don't accept empty input
     keywords = ''
     while(keywords == ''):
-        keywords = input("Search keywords:\n").strip()
+        keywords = input("Search keywords: ").strip()
     keywords = keywords.split()
 
     # Build the Query to search for songs
-    query = "WITH "
-    for i in range(len(keywords)):
-        query += "s" + str(i) + "(type, id, title, duration) AS (" + '''
-        SELECT 'song', sid, title, duration
+    query = "SELECT * FROM ("
+    for i in keywords:
+        query += '''
+        SELECT 'song' as type, sid as id, title, duration
         FROM songs
-        WHERE lower(title) LIKE \'%''' + keywords[i].lower() + '%\'\n),\n'
+        WHERE lower(title) LIKE ?
+        UNION ALL
 
-        query += "p" + str(i) + "(type, id, title, duration) AS (" + '''
-        SELECT 'playlist', playlists.pid, playlists.title, SUM(songs.duration)
+        SELECT 'playlist' as type, playlists.pid as id, playlists.title, SUM(songs.duration)
         FROM playlists
         INNER JOIN plinclude ON playlists.pid = plinclude.pid
         INNER JOIN songs ON plinclude.sid = songs.sid
-        WHERE lower(playlists.title) LIKE \'%''' + keywords[i].lower() + '%\'\nGROUP BY playlists.pid\n),\n'
+        WHERE lower(playlists.title) LIKE ?
+        GROUP BY playlists.pid
+        UNION ALL'''
 
-    query = query[:-2] + '\n SELECT type, id, title, duration FROM (\n'
-    for i in range(len(keywords)):
-        query += "\tSELECT * FROM s" + str(i) + " UNION ALL SELECT * FROM p" + str(i) + "\nUNION ALL\n"
-    query = query[:-10] + ")\nGROUP BY type, id ORDER BY COUNT(*) DESC;"
- 
+    query = query[:-9] + ''') as t
+    WHERE t.id IS NOT NULL
+    GROUP BY t.type, t.id
+    ORDER BY COUNT(*) DESC;'''
 
-    # Execute the query and display it
-    cursor.execute(query)
+
+    # Format the keywords to work with the positional parameters
+    # We have ['key1', 'key2']
+    # We need ['%key1%', '%key1%', '%key2%', '%key2%']
+    formatted = sorted(2*keywords)
+    for i in range( len(formatted) ):
+        formatted[i] = '%' + formatted[i] + '%'
+
+
+    # Execute the query and display the results
+    cursor.execute(query, formatted)
     displaySearchInterface(keywords, cursor.fetchall(), ['type', 'id', 'title', 'duration'])
+    return
 
 
 # Takes input, and creates a query to search artists and their songs for matching keywords
@@ -145,31 +176,37 @@ def searchArtists():
     # Get the input, don't accept empty input
     keywords = ''
     while(keywords == ''):
-        keywords = input("Search keywords:\n").strip()
+        keywords = input("Search keywords: ").strip()
     keywords = keywords.split()
 
-    query = "WITH "
-    for i in range(len(keywords)):
+    # Create the query
+    query = "SELECT 'artist', artists.aid, artists.name, artists.nationality, COUNT(DISTINCT perform.sid) as num_songs FROM ("
+    for i in keywords:
         query += '''
-        a''' + str(i) + '(type, aid, name, nationality) AS (' + '''
-        SELECT 'artist', artists.aid, artists.name, artists.nationality
+        SELECT DISTINCT artists.aid
         FROM artists
         INNER JOIN perform ON artists.aid = perform.aid
         INNER JOIN songs ON perform.sid = songs.sid
-        WHERE lower(artists.name) LIKE \'%''' + keywords[i].lower() + '%\' OR lower(songs.title) LIKE \'%' + keywords[i].lower() + '''%\'
-        GROUP BY artists.aid
-        ),'''
+        WHERE lower(artists.name) LIKE ? OR lower(songs.title) LIKE ?
+        UNION ALL'''
 
-    query = query[:-1] + "\nSELECT t.type, t.aid, t.name, t.nationality, COUNT(DISTINCT perform.sid) as num_songs FROM (\n"
-    for i in range(len(keywords)):
-        query += "\tSELECT * FROM a" + str(i) + " UNION ALL\n"
-    query = query[:-10] + '''\n) as t
+    query = query[:-9] + ''') as t
+    INNER JOIN artists ON t.aid = artists.aid
     INNER JOIN perform ON t.aid = perform.aid
     GROUP BY t.aid
-    ORDER BY COUNT(*)/1.0/num_songs DESC;'''
+    ORDER BY COUNT(*)/num_songs DESC;'''
 
-    cursor.execute(query)
+
+    # Format the keywords to work with the positional parameters
+    # We have ['key1', 'key2']
+    # We need ['%key1%', '%key1%', '%key2%', '%key2%']
+    formatted = sorted(2*keywords)
+    for i in range( len(formatted) ):
+        formatted[i] = '%' + formatted[i] + '%'
+
+    cursor.execute(query, formatted)
     displaySearchInterface(keywords, cursor.fetchall(), ['type', 'id', 'name', 'nationality', 'songs'])
+    return
 
 
 # Creates the interface to view search results
@@ -179,6 +216,8 @@ def searchArtists():
 #   cols: the collumns of the query
 def displaySearchInterface(keywords, results, collumns):
 
+    # Index points to the first song to be displayed in the results
+    # I.E. rows (index) to (index+5) are displayed at a time
     index = 0
     while(True):
         clearScreen()
@@ -193,12 +232,13 @@ def displaySearchInterface(keywords, results, collumns):
         print("Displaying page " + str(int(index/5)+1) + " of " + str(int(len(results)/5)+1))
 
         # Get user input
-        print("\nWhat would you like to do?\n\t/f or /b to load pages\n\t/exit to exit the system\n\tInput the type and ID of an entry to select it")
+        print("\nWhat would you like to do?\n\t/f or /b to load pages\n\t/back to return to previous screen\n\tInput the type and ID of an entry to select it")
         command = input("/UAtify$ ").strip()
 
         # Process it
-        if command == "/exit":
-            closeAndExit()
+        if command == "/back":
+            clearScreen()
+            return
         elif command == "/f":
             if(index <= len(results)-5):
                 index += 5
@@ -209,18 +249,22 @@ def displaySearchInterface(keywords, results, collumns):
         # Check if the command is a name or title in the results
         for row in results[index:index+5]:
             if(command[0:6] == "artist" and command[7:] == str(row[1])):
+                clearScreen()
                 viewArtist(row[1])
 
             if(command[0:4] == "song" and command[5:] == str(row[1])):
+                clearScreen()
                 viewSongs(row[1])
 
             if(command[0:8] == "playlist" and command[9:] == str(row[1])):
+                clearScreen()
                 viewPlaylist(row[1])
 
 
 # Takes a song ID and prints the id, title, performing artists, and playlists
 # Throws: TypeError if sid does not exist in database
 def printSongsInfo(sid):
+    global connection, cursor
 
     # First get the title & duration
     query = "SELECT title, duration FROM songs WHERE sid=?;"
@@ -248,19 +292,23 @@ def printSongsInfo(sid):
     cursor.execute(query, [sid])
 
     # Display it all
-    print(title + "\nID: " + str(sid) + "\nPerforming artists:")
+    clearScreen()
+    print(title + "\nID: " + str(sid) + "\nLength: " + str(duration) + "s" + "\nPerforming artists:")
     for row in artists:
         print('\t' + row[0])
     print("Featured in playlists:")
     for row in cursor.fetchall():
         print('\t' + row[0])
 
+    input("\nEnter anything to return to song selection\n./UAtify$ ")
+    clearScreen()
     return
 
 
 # Display's all of a user's playlists,
 # and allows them to add a song to one, or create a new playlist
 def addSongToPlaylist(sid, uid):
+    global connection, cursor
 
     # Get this user's playlists
     query = "SELECT pid, title FROM playlists WHERE uid=?;"
@@ -268,7 +316,6 @@ def addSongToPlaylist(sid, uid):
     playlists = cursor.fetchall()
 
     # Output the interface
-    clearScreen()
     print("Add song with id " + str(sid) + " to a playlist.\nYour playlists are dispayed below")
     for row in playlists:
         print('\tID: ' + str(row[0]) + '  ' + row[1])
@@ -277,8 +324,11 @@ def addSongToPlaylist(sid, uid):
     # Get user input
     while(True):
         command = input("./Uatify$ ")
+
         if(command == "/cancel"):
+            clearScreen()
             return
+
         elif(command[:4] == "/new"):
             # Must first create a new playlist ID
             query = "SELECT MAX(pid) FROM playlists"
@@ -292,9 +342,10 @@ def addSongToPlaylist(sid, uid):
             cursor.execute(query, [ newPID, sid ])
 
             connection.commit()
-            print("New playlist created with this song!")
-            return 
 
+            clearScreen()
+            print("Created playlist " + command[5:] + " with this song!\n")
+            return 
 
         # Check if the input matches a playlist ID
         # If it does, add the song to the playlist
@@ -321,6 +372,7 @@ def addSongToPlaylist(sid, uid):
                 cursor.execute(query, [ row[0], sid, sorder])
                 connection.commit()
 
+                clearScreen()
                 print("Song successfully added to playlist!\n")
                 return
 
@@ -330,7 +382,7 @@ def addSongToPlaylist(sid, uid):
 # listen to it, see more info, or add it to a playlist
 # Throws a TypeError if sid does not exist in db
 def viewSongs(sid):
-    global uid # TODO: GET THE USER'S UID
+    global connection, cursor, uid
     
     cursor.execute("SELECT title FROM songs WHERE sid=?", [sid,])
     title = cursor.fetchone()[0]
@@ -339,42 +391,68 @@ def viewSongs(sid):
         /listen to play it
         /info to see information about it
         /playlist to add it to a playlist
-        /exit to exit'''
+        /back to return to previous screen'''
 
-    clearScreen()
-    print("You Selected: " + title + prompt)
+    
 
     # Get and process user input
     while(True):
+        global uid, sno
+
+        print("You Selected: " + title + prompt)
+
         command = input("./Uatify$ ")
         if(command == "/listen"):
+
+            # Get the current song's count from the session table
+            cursor.execute("SELECT cnt FROM listen WHERE uid=? AND sno=? AND sid=?", [uid, sno, sid])
+
+
+            # If the query returns None, the song is not yet in the session, so insert it into the session
+            # Otherwise, get the cnt and increment it by 1, and update the table
+            cnt = cursor.fetchone()
+            if(cnt == None):
+                cursor.execute("INSERT INTO listen VALUES (?, ?, ?, 1)", [uid, sno, sid])
+            else:
+                cnt = cnt[0] + 1
+                cursor.execute("UPDATE listen SET cnt=? WHERE uid=? AND sno=? AND sid=?", [cnt, uid, sno, sid])
+
+
+            connection.commit()
+
             clearScreen()
             print("♪ ♪ ♪ ♪")
-            print("Wow that sure was good!")
-            closeAndExit()
+            print("Wow that sure was good!\n")
         elif(command == "/info"):
-            clearScreen()
             printSongsInfo(sid)
-            print(prompt)
         elif(command == "/playlist"):
+            clearScreen()
             addSongToPlaylist(sid, uid)
-            print("You selected: " + title + prompt)
-        elif(command == "/exit"):
-            closeAndExit()
+        elif(command == "/back"):
+            clearScreen()
+            return
+        else:
+            clearScreen()
 
-
-def main():
-    global connection, cursor
-    createDatabaseConnection("/Users/lucasrasmusson/Documents/CMPUT291/miniProject1/miniProject1.db")
-
-
-    x = input("Search songs or artists?\n\t/s or /a?\n")
-    if(x == "/s"):
-        searchSongs()
-    elif(x == "/a"):
-        searchArtists()
-
-    closeAndExit()
 
 if __name__ == "__main__":
-    main()
+    connection = sqlite3.connect("./miniProject1.db")
+    cursor = connection.cursor()
+    
+    cursor.execute(' PRAGMA foreign_keys=ON; ')
+    connection.commit()
+
+    uid = 'u02'
+    sno = 1
+    # listen to song 2 Hotline (cnt=0.9), and song 4 Power (cnt=None)
+    while(True):
+        x = input("Search songs, artists, or exit?\n\t/s or /a or /e?\n")
+    
+        if(x == "/s"):
+            searchSongs()
+        elif(x == "/a"):
+            searchArtists()
+        elif(x == "/e"):
+            break
+
+    closeAndExit()

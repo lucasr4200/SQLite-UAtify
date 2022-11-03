@@ -8,11 +8,8 @@
 [] Combine our work together
 
 '''
-
-from operator import truediv
 import main
 
-databasefile = "./miniProject1.db"
 #show artist options
 def getOptions():
     selection = input("Enter s to publish a new song\n"
@@ -31,9 +28,9 @@ def getOptions():
 # Needed schema:
 #   songs(sid, title, duration)
 #   perform(aid, sid)
-def publishSong(aid):
+def publishSong(db, aid):
     #connect
-    connection = main.sqlite3.connect(databasefile)
+    connection = main.sqlite3.connect(db)
     cursor = connection.cursor()
 
     #get title & duration
@@ -61,12 +58,12 @@ def publishSong(aid):
             print("Song not added")
 
     if exists == []:
-        addSongToDB(title, duration, aid)
+        addSongToDB(db, title, duration, aid)
 
 #add song to database
-def addSongToDB(title, duration, aid):
+def addSongToDB(db, title, duration, aid):
     #connect 
-    connection = main.sqlite3.connect(databasefile)
+    connection = main.sqlite3.connect(db)
     cursor = connection.cursor()
 
     #get artist collab
@@ -124,8 +121,8 @@ def addSongToDB(title, duration, aid):
 #Artist should be able to find top Fans & Playlists
 # Top 3 Fans by artist duration listened
 # if there are not >3, return less
-def biggestFans(aid):
-    connection = main.sqlite3.connect(databasefile)
+def biggestFans(db, aid):
+    connection = main.sqlite3.connect(db)
     cursor = connection.cursor()
     #adapted from solution of Q4 for Assignment 2
     cursor.execute("SELECT l.uid, u.name, sum(l.cnt*s.duration) FROM listen l, songs s, perform p, users u " +
@@ -148,9 +145,9 @@ def biggestFans(aid):
 
 # Top 3 Playlists by number of artist songs included
 # if there are not >3, return less
-def topPlaylists(aid):
+def topPlaylists(db, aid):
     #connect
-    connection = main.sqlite3.connect(databasefile)
+    connection = main.sqlite3.connect(db)
     cursor = connection.cursor()
     cursor.execute("SELECT p.pid, p.title, COUNT(i.sid) FROM playlists p, plinclude i, perform a "+
                     "WHERE p.pid=i.pid AND i.sid=a.sid AND a.aid=:aid "+
@@ -170,22 +167,24 @@ def topPlaylists(aid):
     cursor.close()
     connection.close()
 
-
-if __name__ == '__main__':
-    databaseFile = "./miniProject1.db"
-    main.createDatabaseConnection(databaseFile)
+def artistInterface(databaseFile, aid):
     option = ""
     while option != "q":
         option = getOptions()
         if option == "s":
-            publishSong("a04")
+            publishSong(databaseFile, aid)
         elif option == 'f':
-            biggestFans("a04")
+            biggestFans(databaseFile, aid)
         elif option == 'p':
-            topPlaylists("a04")
+            topPlaylists(databaseFile, aid)
         elif option == 'q':
             pass
         else:
             print("invalid input, please try again")
+
+            
+if __name__ == '__main__':
+    databasefile = "./miniProject1.db"
+    artistInterface(databasefile, "a04")
 
 
