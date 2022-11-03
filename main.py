@@ -122,28 +122,35 @@ def login(databaseFile):
 
 def startSession(id):
     connection = sqlite3.connect(databaseFile)
-    sno = random.randint(0, 100000)
+    cursor = connection.cursor()
+
+    # Get the user's greatest sno, and add 1 to it to ensure uniqueness
+    cursor.execute("SELECT MAX(sno) FROM sessions WHERE uid=?", [id])
+
+    maxsno = cursor.fetchone()[0]
+    if(maxsno == None):
+        maxsno = 1
+    else:
+        maxsno += 1
 
     # Start a session by inserting values into  sessions table, initialize the end date as a NULL value
-    connection.execute("INSERT into sessions(uid, sno, start, end) VALUES (:id,:s, date('now'), Null)", {"id":id, "s":sno})
+    connection.execute("INSERT into sessions(uid, sno, start, end) VALUES (:id,:s, date('now'), Null)", {"id":id, "s":maxsno})
     connection.commit()
     connection.close()
 
-    return sno
+    return maxsno
 
 
 def endSession(id, sno):
     connection = sqlite3.connect(databaseFile)
     cur = connection.cursor()
 
-    cur.execute("SELECT s.sno, s.start, s.uid FROM sessions s, users u" \
-                " WHERE s.uid = u.uid;")
-    # y is a temporary variable to store the results of the query
-    y = cur.fetchall()
-
-    # update the sessions table to include coresponding end date
-    updateSessions(connection, (id, sno, y[0][1]))
-
+    connection.execute(f"UPDATE sessions SET "
+                       f"end = datetime('now')"
+                       f"WHERE uid = ? AND sno = ?"
+                       , [id, sno])
+    connection.commit()
+    
     cur.close()
     connection.close()
 
@@ -158,11 +165,16 @@ def updateSessions(connection, data):
                        "end = date('now')"\
                        "WHERE sno = :s"
                        , {"id":data[0], "sn":data[1], "st":data[2], "s":data[1]})
-
     connection.commit()
 
 
 if __name__ == '__main__':
+
+    if len(sys.argv) != 2:
+        print("Please provide exactly one database file!")
+        exit()
+
+    databaseFile = sys.argv[1]
 
     # Main loop for running program
     while 1:
@@ -182,23 +194,26 @@ if __name__ == '__main__':
             while 1:          
                 # Start session here
                 sno = startSession(loginData[0][0])
-                userMenu = "Welcome to UAtify\n"\
-                        "To search for an artist, enter /search artists\n"\
-                        "To search for a song, enter /search songs\n"\
-                        "To logout, enter /logout\n"
+                userMenu =  f"User Actions:"\
+                            f"\n\texit"\
+                            f"\n\tlogout"\
+                            f"\n\tstart session"\
+                            f"\n\tend session"\
+                            f"\n\tsearch songs"\
+                            f"\n\tsearch artists\n"
                 randomInput = input(userMenu)
 
-                if randomInput.lower() == "/logout":
+                if randomInput.lower() == "logout":
                     endSession(loginData[0][0], sno)
                     # end session here
                     break
 
                 # search for songs using function from search.py
-                if randomInput.lower() == "/search songs":
+                if randomInput.lower() == "search songs":
                     search.setupSearch(sqlite3.connect(databaseFile), sqlite3.connect(databaseFile).cursor(), loginData[0][0], sno)
                     search.searchSongs()
                 # search for artists using function from search.py
-                if randomInput.lower() == "/search artists":
+                if randomInput.lower() == "search artists":
                     search.setupSearch(sqlite3.connect(databaseFile), sqlite3.connect(databaseFile).cursor(), loginData[0][0],sno)
                     search.searchArtists()
 
