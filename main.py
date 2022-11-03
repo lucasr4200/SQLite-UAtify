@@ -4,7 +4,7 @@ from sqlite3 import Error
 import getpass
 import os
 import search
-import artists
+#import artists
 import sys
 
 
@@ -108,27 +108,34 @@ def login(databaseFile):
 
 def startSession(id):
     connection = sqlite3.connect(databaseFile)
-    sno = random.randint(0, 100000)
+    cursor = connection.cursor()
+
+    # Get the user's greatest sno, and add 1 to it to ensure uniqueness
+    cursor.execute("SELECT MAX(sno) FROM sessions WHERE uid=?", [id])
+
+    maxsno = cursor.fetchone()[0]
+    if(maxsno == None):
+        maxsno = 1
+    else:
+        maxsno += 1
 
     # Start a session by inserting values into  sessions table, initialize the end date as a NULL value
-    connection.execute(f"INSERT into sessions(uid, sno, start, end) VALUES (?,?, date('now'), Null)", (id, sno))
+    connection.execute(f"INSERT into sessions(uid, sno, start, end) VALUES (?,?, datetime('now'), Null)", (id, maxsno))
     connection.commit()
     connection.close()
 
-    return sno
+    return maxsno
 
 
 def endSession(id, sno):
     connection = sqlite3.connect(databaseFile)
     cur = connection.cursor()
 
-    cur.execute(f"SELECT s.sno, s.start, s.uid FROM sessions s, users u" \
-                f" WHERE s.uid = u.uid;")
-    # y is a temporary variable to store the results of the query
-    y = cur.fetchall()
-
-    # update the sessions table to include coresponding end date
-    updateSessions(connection, (id, sno, y[0][1]))
+    connection.execute(f"UPDATE sessions SET "
+                       f"end = datetime('now')"
+                       f"WHERE uid = ? AND sno = ?"
+                       , [id, sno])
+    connection.commit()
 
     connection.close()
 
@@ -136,22 +143,22 @@ def endSession(id, sno):
 def updateSessions(connection, data):
     # function to update the sessions table
 
-    connection.execute(f" UPDATE sessions "
-                       f"set uid = ?,"
-                       f"sno = ?,"
-                       f"start = ?,"
-                       f"end = date('now')"
-                       f"WHERE sno = ?"
-                       , (data[0], data[1], data[2], data[1]))
+
 
     connection.commit()
 
 
 if __name__ == '__main__':
 
+    if len(sys.argv) != 2:
+        print("Please provide exactly one database file!")
+        exit()
+
+    databaseFile = sys.argv[1]
+
     # Main loop for running program
     while 1:
-        databaseFile = sys.argv[1]
+        
         createDatabaseConnection(databaseFile)
 
         # data stores id,
@@ -171,11 +178,33 @@ if __name__ == '__main__':
         # set logout initially
         logout = False
         while 1:
+
+            if loginType == "user":
+                print(f"User Actions:"
+                    f"\n\texit"
+                    f"\n\tlogout"
+                    f"\n\tstart session"
+                    f"\n\tend session"
+                    f"\n\tsearch songs"
+                    f"\n\tsearch artists"
+                    )
+            else:
+                print(f"Artist Actions:"
+                    f"\n\texit"
+                    f"\n\tlogout"
+                    f"\n\tpublish song"
+                    f"\n\ttop listeners"
+                    f"\n\ttop playlists"
+                    )
+                print
+
             randomInput = input("Whatever input:")
+
             if randomInput == "logout":
                 endSession(data[0][0], sno)
                 # end session here
                 logout = True
+
             if randomInput == "exit":
                 # end session here as well
                 # is exit is entered break out of the inner loop
