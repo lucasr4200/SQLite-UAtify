@@ -180,7 +180,7 @@ def artistInterface(databaseFile, aid):
         elif option == 'q':
             pass
         else:
-            print("invalid input, please try again")
+            print("Invalid input, please try again")
 
             
 if __name__ == '__main__':

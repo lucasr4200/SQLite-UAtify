@@ -32,6 +32,7 @@ def createDatabaseConnection(databaseFile):
 
 def login(databaseFile):
     # Decide whether to activate user or artist login
+    clearScreen()
     userOrArtist = input("Would you like to log in as a user, artist or signup? u/a/s: ")
 
     if userOrArtist == "u":
@@ -44,10 +45,14 @@ def login(databaseFile):
                     " WHERE u.uid = :uid AND u.pwd = :pw;", {"uid": uidEntered, "pw":passwordEntered})
         result = cur.fetchall()
         if result:
+            clearScreen()
             for row in result:
                 print("Welcome:", row[1])
+            cur.close()
+            connection.close()
         else:
             print("Login failed")
+            cur.close()
             connection.close()
             x = input("Would you like to try again? y/n: ")
             if x == "y":
@@ -72,9 +77,13 @@ def login(databaseFile):
 
         result = cur.fetchall()
         if result:
+            clearScreen()
             for row in result:
                 print("Welcome:", row[1])
+            cur.close()
+            connection.close()
         else:
+            cur.close()
             connection.close()
             print("Login failed")
             x = input("Would you like to try again? y/n: ")
@@ -100,6 +109,7 @@ def login(databaseFile):
                             {"nId":newuid, "nName":newName, "nPW":newPassword})
 
         connection.commit()
+        cur.close()
         connection.close()
 
         return login(databaseFile)
@@ -107,7 +117,7 @@ def login(databaseFile):
         exit()
     else:
         print("Neither answer selected")
-        login(databaseFile)
+        return login(databaseFile)
 
 
 def startSession(id):
@@ -134,6 +144,7 @@ def endSession(id, sno):
     # update the sessions table to include coresponding end date
     updateSessions(connection, (id, sno, y[0][1]))
 
+    cur.close()
     connection.close()
 
 
@@ -162,46 +173,34 @@ if __name__ == '__main__':
         createDatabaseConnection(databaseFile)
 
         # data stores id, loginType
-        data = login(databaseFile)
+        loginData = login(databaseFile)
 
-        clearScreen()
-
-        # Establish login type
-        if data[1] == "user":
-            loginType = "user"
-        else:
-            loginType = "artist"
-
-        # set logout initially
-        logout = False
-
-        if loginType == "artist":
-            artist.artistInterface(databaseFile, data[0][0])
+        # Establish login type \ data[1] is login type
+        if loginData[1] == "artist":
+            artist.artistInterface(databaseFile, loginData[0][0])
         else:
             while 1:          
                 # Start session here
-                sno = startSession(data[0][0])
-                randomInput = input("Whatever input:")
+                sno = startSession(loginData[0][0])
+                userMenu = "Welcome to UAtify\n"\
+                        "To search for an artist, enter /search artists\n"\
+                        "To search for a song, enter /search songs\n"\
+                        "To logout, enter /logout\n"
+                randomInput = input(userMenu)
 
-                if randomInput == "logout":
-                    endSession(data[0][0], sno)
+                if randomInput.lower() == "/logout":
+                    endSession(loginData[0][0], sno)
                     # end session here
-                    logout = True
-                if randomInput == "exit":
-                    # end session here as well
-                    # is exit is entered break out of the inner loop
-                    endSession(data[0][0], sno)
                     break
+
                 # search for songs using function from search.py
-                if randomInput == "search songs":
-                    search.setupSearch(sqlite3.connect(databaseFile), sqlite3.connect(databaseFile).cursor(), data[0][0], sno)
+                if randomInput.lower() == "/search songs":
+                    search.setupSearch(sqlite3.connect(databaseFile), sqlite3.connect(databaseFile).cursor(), loginData[0][0], sno)
                     search.searchSongs()
                 # search for artists using function from search.py
-                if randomInput == "search artists":
-                    search.setupSearch(sqlite3.connect(databaseFile), sqlite3.connect(databaseFile).cursor(), data[0][0],sno)
+                if randomInput.lower() == "/search artists":
+                    search.setupSearch(sqlite3.connect(databaseFile), sqlite3.connect(databaseFile).cursor(), loginData[0][0],sno)
                     search.searchArtists()
 
-                # restart loop at login if logout is true
-                if logout:
-                    break
+            
 
