@@ -1,24 +1,20 @@
 '''
-[] Searches and comparisons are case insensitive [use .lower()]
-[] Protect against SQL injections [use connection.prepareStatement()]
-[] Ensure database can be passed as a command line argument
-[/] Make password non-visible while typing
-[/] Option to exit the program from login screen
-[] Show user options on login
-[] Combine our work together
-
+Functions required for the artist actions in UAtify,
+including the interface
 '''
 import main
 
 #show artist options
 def getOptions():
-    selection = input("Enter s to publish a new song\n"
-                        +"Enter f to view your top fans\n"
-                        +"Enter p to view your top playlists\n"
-                        +"Enter q to quit\n")
+    selection = input(f"Artist Dashboard:\n"\
+                        f"\tEnter /new to publish a new song\n"
+                        f"\tEnter /fans to view your top fans\n"\
+                        f"\tEnter /plists to view your top playlists\n"\
+                        f"\tEnter /logout to logout\n"\
+                        f"\tEnter /quit to quit\n"
+                        f"./Uatify$ ")
     while 1:
-        selection = selection.lower()
-        if (selection == 'p' or 'f' or 's'):
+        if (selection.lower() == "/plists" or "/fans" or "/new" or "/logout" or "/quit"):
             return selection
         else:
             selection = input("Invalid input, please try again: ")
@@ -169,18 +165,20 @@ def topPlaylists(db, aid):
 
 def artistInterface(databaseFile, aid):
     option = ""
-    while option != "q":
+    while 1:
+        #only returns valid options
         option = getOptions()
-        if option == "s":
+        if option == "/new":
             publishSong(databaseFile, aid)
-        elif option == 'f':
+        elif option == "/fans":
             biggestFans(databaseFile, aid)
-        elif option == 'p':
+        elif option == "/plists":
             topPlaylists(databaseFile, aid)
-        elif option == 'q':
-            pass
-        else:
-            print("invalid input, please try again")
+        elif option == "/logout":
+            break
+        elif option == "/quit":
+            exit()
+
 
             
 if __name__ == '__main__':
