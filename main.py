@@ -40,8 +40,8 @@ def login(databaseFile):
 
         connection = sqlite3.connect(databaseFile)
         cur = connection.cursor()
-        cur.execute(f"SELECT u.uid, u.name FROM users u" \
-                    f" WHERE u.uid = '{uidEntered}' AND u.pwd = '{passwordEntered}';")
+        cur.execute("SELECT u.uid, u.name FROM users u" \
+                    " WHERE u.uid = :uid AND u.pwd = :pw;", {"uid": uidEntered, "pw":passwordEntered})
         result = cur.fetchall()
         if result:
             for row in result:
@@ -67,10 +67,8 @@ def login(databaseFile):
 
         connection = sqlite3.connect(databaseFile)
         cur = connection.cursor()
-        # query = f"SELECT a.aid, a.name FROM artists a" \
-        #     f" WHERE a.aid = '{aidEntered}' AND a.pwd = '{passwordEntered}';"
-        cur.execute(f"SELECT a.aid, a.name FROM artists a" \
-                    f" WHERE a.aid = '{aidEntered}' AND a.pwd = '{passwordEntered}';")
+        cur.execute("SELECT a.aid, a.name FROM artists a" \
+                    " WHERE a.aid = :aid AND a.pwd = :pw;", {"aid":aidEntered, "pw":passwordEntered})
 
         result = cur.fetchall()
         if result:
@@ -98,7 +96,8 @@ def login(databaseFile):
         newName = input("Enter name: ")
         newPassword = input("Enter password: ")
 
-        connection.execute(f"INSERT into users(uid, name, pwd) VALUES (?,?,?)", (newuid, newName, newPassword))
+        connection.execute("INSERT into users(uid, name, pwd) VALUES (nId,nName,nPW)", 
+                            {"nId":newuid, "nName":newName, "nPW":newPassword})
 
         connection.commit()
         connection.close()
@@ -116,7 +115,7 @@ def startSession(id):
     sno = random.randint(0, 100000)
 
     # Start a session by inserting values into  sessions table, initialize the end date as a NULL value
-    connection.execute(f"INSERT into sessions(uid, sno, start, end) VALUES (?,?, date('now'), Null)", (id, sno))
+    connection.execute("INSERT into sessions(uid, sno, start, end) VALUES (:id,:s, date('now'), Null)", {"id":id, "s":sno})
     connection.commit()
     connection.close()
 
@@ -127,8 +126,8 @@ def endSession(id, sno):
     connection = sqlite3.connect(databaseFile)
     cur = connection.cursor()
 
-    cur.execute(f"SELECT s.sno, s.start, s.uid FROM sessions s, users u" \
-                f" WHERE s.uid = u.uid;")
+    cur.execute("SELECT s.sno, s.start, s.uid FROM sessions s, users u" \
+                " WHERE s.uid = u.uid;")
     # y is a temporary variable to store the results of the query
     y = cur.fetchall()
 
@@ -141,13 +140,13 @@ def endSession(id, sno):
 def updateSessions(connection, data):
     # function to update the sessions table
 
-    connection.execute(f" UPDATE sessions "
-                       f"set uid = ?,"
-                       f"sno = ?,"
-                       f"start = ?,"
-                       f"end = date('now')"
-                       f"WHERE sno = ?"
-                       , (data[0], data[1], data[2], data[1]))
+    connection.execute(" UPDATE sessions "\
+                       "set uid = :id,"\
+                       "sno = :sn,"\
+                       "start = :st,"\
+                       "end = date('now')"\
+                       "WHERE sno = :s"
+                       , {"id":data[0], "sn":data[1], "st":data[2], "s":data[1]})
 
     connection.commit()
 
