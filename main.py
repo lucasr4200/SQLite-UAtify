@@ -4,9 +4,8 @@ from sqlite3 import Error
 import getpass
 import os
 import search
-#import artists
+import artist
 import sys
-
 
 
 # Code from group member Jonathen Adsit
@@ -19,18 +18,6 @@ def clearScreen():
     return
 
 
-# Creates a database connection
-def createDatabaseConnection(databaseFile):
-    connection = None
-    try:
-        connection = sqlite3.connect(databaseFile)
-    except Error as error:
-        print(error)
-    finally:
-        if connection:
-            connection.close()
-
-
 def login(databaseFile):
     # Decide whether to activate user or artist login
     userOrArtist = input("Would you like to log in as a user, artist or signup? u/a/s: ")
@@ -41,9 +28,8 @@ def login(databaseFile):
 
         connection = sqlite3.connect(databaseFile)
         cur = connection.cursor()
-        query = f"SELECT u.uid, u.name FROM users u" \
-                f" WHERE u.uid = '{uidEntered}' AND u.pwd = '{passwordEntered}';"
-        cur.execute(query)
+        cur.execute("SELECT u.uid, u.name FROM users u" \
+                    " WHERE u.uid = :uid AND u.pwd = :pw;", {"uid": uidEntered, "pw":passwordEntered})
         result = cur.fetchall()
         if result:
             for row in result:
@@ -56,6 +42,7 @@ def login(databaseFile):
                 result = login(databaseFile)
             else:
                 print("Goodbye!")
+                exit()
 
         # add to list if login type is user
         result.append("user")
@@ -64,28 +51,31 @@ def login(databaseFile):
 
     elif userOrArtist == "a":
         aidEntered = input("Input aid: ")
-        passwordEntered = input("Input password: ")
+        passwordEntered = getpass.getpass("Input password: ")
 
         connection = sqlite3.connect(databaseFile)
         cur = connection.cursor()
-        # query = f"SELECT a.aid, a.name FROM artists a" \
-        #     f" WHERE a.aid = '{aidEntered}' AND a.pwd = '{passwordEntered}';"
-        cur.execute(f"SELECT a.aid, a.name FROM artists a" \
-                    f" WHERE a.aid = '{aidEntered}' AND a.pwd = '{passwordEntered}';")
+        cur.execute("SELECT a.aid, a.name FROM artists a" \
+                    " WHERE a.aid = :aid AND a.pwd = :pw;", {"aid":aidEntered, "pw":passwordEntered})
 
-        # x is a temporary variable
-        x = cur.fetchall()
-        if x:
-            for row in x:
+        result = cur.fetchall()
+        if result:
+            for row in result:
                 print("Welcome:", row[1])
         else:
+            connection.close()
             print("Login failed")
-        connection.close()
+            x = input("Would you like to try again? y/n: ")
+            if x == "y":
+                result = login(databaseFile)
+            else:
+                print("Goodbye!")
+                exit()
 
-        # add to list if login type is artist
-        x.append("artist")
+        # add to list if login type is user
+        result.append("artist")
 
-        return x
+        return result
 
     elif userOrArtist == "s":
         connection = sqlite3.connect(databaseFile)
@@ -94,13 +84,15 @@ def login(databaseFile):
         newName = input("Enter name: ")
         newPassword = input("Enter password: ")
 
-        connection.execute(f"INSERT into users(uid, name, pwd) VALUES (?,?,?)", (newuid, newName, newPassword))
+        connection.execute("INSERT into users(uid, name, pwd) VALUES (nId,nName,nPW)", 
+                            {"nId":newuid, "nName":newName, "nPW":newPassword})
 
         connection.commit()
         connection.close()
 
         return login(databaseFile)
-
+    elif userOrArtist == "exit":
+        exit()
     else:
         print("Neither answer selected")
         login(databaseFile)
@@ -136,16 +128,7 @@ def endSession(id, sno):
                        f"WHERE uid = ? AND sno = ?"
                        , [id, sno])
     connection.commit()
-
     connection.close()
-
-
-def updateSessions(connection, data):
-    # function to update the sessions table
-
-
-
-    connection.commit()
 
 
 if __name__ == '__main__':
@@ -158,16 +141,11 @@ if __name__ == '__main__':
 
     # Main loop for running program
     while 1:
-        
-        createDatabaseConnection(databaseFile)
 
-        # data stores id,
+        # data stores id, loginType
         data = login(databaseFile)
 
         clearScreen()
-
-        # Start session here
-        sno = startSession(data[0][0])
 
         # Establish login type
         if data[1] == "user":
@@ -175,54 +153,75 @@ if __name__ == '__main__':
         else:
             loginType = "artist"
 
-        # set logout initially
-        logout = False
+        # declare sno for later
+        sno = None
+        randomInput = None
+
+
         while 1:
+            if loginType == "artist":
+                artist.artistInterface(databaseFile, data[0][0])
+                randomInput = "exit"
+                break
 
-            if loginType == "user":
-                print(f"User Actions:"
-                    f"\n\texit"
-                    f"\n\tlogout"
-                    f"\n\tstart session"
-                    f"\n\tend session"
-                    f"\n\tsearch songs"
-                    f"\n\tsearch artists"
-                    )
-            else:
-                print(f"Artist Actions:"
-                    f"\n\texit"
-                    f"\n\tlogout"
-                    f"\n\tpublish song"
-                    f"\n\ttop listeners"
-                    f"\n\ttop playlists"
-                    )
-                print
+            print(f"User Actions:"
+                f"\n\texit"
+                f"\n\tlogout"
+                f"\n\tstart session"
+                f"\n\tend session"
+                f"\n\tsearch songs"
+                f"\n\tsearch artists"
+                )
 
-            randomInput = input("Whatever input:")
+            randomInput = input("./UAtify$ ")
 
             if randomInput == "logout":
-                endSession(data[0][0], sno)
-                # end session here
-                logout = True
+                
+                # end session if one was started
+                if(sno != None):
+                    endSession(data[0][0], sno)
+                clearScreen()
+                break
 
             if randomInput == "exit":
-                # end session here as well
-                # is exit is entered break out of the inner loop
-                endSession(data[0][0], sno)
+                # end session if one was started
+                if(sno != None):
+                    endSession(data[0][0], sno)
+                clearScreen()
                 break
-            # search for songs using function from search.py
-            if randomInput == "search songs":
-                search.setupSearch(sqlite3.connect(databaseFile), sqlite3.connect(databaseFile).cursor(), data[0][0], sno)
-                search.searchSongs()
-            # search for artists using function from search.py
-            if randomInput == "search artists":
-                search.setupSearch(sqlite3.connect(databaseFile), sqlite3.connect(databaseFile).cursor(), data[0][0],sno)
-                search.searchArtists()
 
-            # restart loop at login if logout is true
-            if logout:
-                break
+            if randomInput == "start session":
+                sno = startSession(data[0][0])
+                clearScreen()
+                print("Session started!")
+
+            if randomInput == "end session":
+                if(sno == None):
+                    clearScreen()
+                    continue
+
+                endSession(data[0][0], sno)
+                sno = None
+                clearScreen()
+                print("Session Ended")
+
+
+            if randomInput == "search songs":
+                clearScreen()
+                if sno == None:
+                    print("Start a session first!")
+                else:
+                    search.setupSearch(sqlite3.connect(databaseFile), sqlite3.connect(databaseFile).cursor(), data[0][0], sno)
+                    search.searchSongs()
+
+            if randomInput == "search artists":
+                clearScreen()
+                if sno == None:
+                    print("Start a session first!")
+                else:
+                    search.setupSearch(sqlite3.connect(databaseFile), sqlite3.connect(databaseFile).cursor(), data[0][0],sno)
+                    search.searchArtists()
+
         # is exit is entered break out of the outer loop
         if randomInput == "exit":
-
             break
