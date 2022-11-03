@@ -182,7 +182,9 @@ def artistInterface(databaseFile, aid):
 
             
 if __name__ == '__main__':
-    databasefile = "./miniProject1.db"
-    artistInterface(databasefile, "a04")
+    print("This is not the main program! please run main.py!")
+    exit()
+    # databasefile = "./miniProject1.db"
+    # artistInterface(databasefile, "a04")
 
 

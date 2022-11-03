@@ -441,23 +441,25 @@ def viewSongs(sid):
 
 
 if __name__ == "__main__":
-    connection = sqlite3.connect("./miniProject1.db")
-    cursor = connection.cursor()
+    print("This is not the main program! please run main.py!")
+    exit()
+    # connection = sqlite3.connect("./miniProject1.db")
+    # cursor = connection.cursor()
     
-    cursor.execute(' PRAGMA foreign_keys=ON; ')
-    connection.commit()
+    # cursor.execute(' PRAGMA foreign_keys=ON; ')
+    # connection.commit()
 
-    uid = 'u02'
-    sno = 1
-    # listen to song 2 Hotline (cnt=0.9), and song 4 Power (cnt=None)
-    while(True):
-        x = input("Search songs, artists, or exit?\n\t/s or /a or /e?\n")
+    # uid = 'u02'
+    # sno = 1
+    # # listen to song 2 Hotline (cnt=0.9), and song 4 Power (cnt=None)
+    # while(True):
+    #     x = input("Search songs, artists, or exit?\n\t/s or /a or /e?\n")
     
-        if(x == "/s"):
-            searchSongs()
-        elif(x == "/a"):
-            searchArtists()
-        elif(x == "/e"):
-            break
+    #     if(x == "/s"):
+    #         searchSongs()
+    #     elif(x == "/a"):
+    #         searchArtists()
+    #     elif(x == "/e"):
+    #         break
 
-    closeAndExit()
+    # closeAndExit()

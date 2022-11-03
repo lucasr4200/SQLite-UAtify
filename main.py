@@ -7,7 +7,9 @@ import artist
 import sys
 
 
-# Code from group member Jonathen Adsit
+connection = None
+cursor = None
+
 def clearScreen():
     # Clear the output
     if (os.name == "nt"):
@@ -17,7 +19,17 @@ def clearScreen():
     return
 
 
+def closeAndExit():
+    if(cursor != None):
+        cursor.close()
+    if(connection != None):
+        connection.close()
+    exit()
+
+
 def login(databaseFile):
+    global connection, cursor
+
     # Decide whether to activate user or artist login
     clearScreen()
     loginPrompt = f"Welcome to UAtify\n"\
@@ -34,27 +46,21 @@ def login(databaseFile):
         uidEntered = input("Input uid: ")
         passwordEntered = getpass.getpass("Input password: ")
 
-        connection = sqlite3.connect(databaseFile)
-        cur = connection.cursor()
-        cur.execute("SELECT u.uid, u.name FROM users u" \
+        cursor.execute("SELECT u.uid, u.name FROM users u" \
                     " WHERE u.uid = :uid AND u.pwd = :pw;", {"uid": uidEntered, "pw":passwordEntered})
-        result = cur.fetchall()
+        result = cursor.fetchall()
         if result:
             clearScreen()
             for row in result:
                 print("Welcome", row[1])
-            cur.close()
-            connection.close()
         else:
             print("Login failed")
-            cur.close()
-            connection.close()
             x = input("Would you like to try again? y/n: ")
             if x == "y":
                 result = login(databaseFile)
             else:
                 print("Goodbye!")
-                exit()
+                closeAndExit()
 
         # add to list if login type is user
         result.append("user")
@@ -65,28 +71,22 @@ def login(databaseFile):
         aidEntered = input("Input aid: ")
         passwordEntered = getpass.getpass("Input password: ")
 
-        connection = sqlite3.connect(databaseFile)
-        cur = connection.cursor()
-        cur.execute("SELECT a.aid, a.name FROM artists a" \
+        cursor.execute("SELECT a.aid, a.name FROM artists a" \
                     " WHERE a.aid = :aid AND a.pwd = :pw;", {"aid":aidEntered, "pw":passwordEntered})
 
-        result = cur.fetchall()
+        result = cursor.fetchall()
         if result:
             clearScreen()
             for row in result:
                 print("Welcome", row[1])
-            cur.close()
-            connection.close()
         else:
-            cur.close()
-            connection.close()
             print("Login failed")
             x = input("Would you like to try again? y/n: ")
             if x == "y":
                 result = login(databaseFile)
             else:
                 print("Goodbye!")
-                exit()
+                closeAndExit()
 
         # add to list if login type is user
         result.append("artist")
@@ -94,30 +94,25 @@ def login(databaseFile):
         return result
 
     elif userOrArtist == "/signup":
-        connection = sqlite3.connect(databaseFile)
-        cur = connection.cursor()
         newuid = input("Enter uid: ")
         newName = input("Enter name: ")
         newPassword = input("Enter password: ")
 
-        connection.execute("INSERT into users(uid, name, pwd) VALUES (:nId,:nName,:nPW)", 
+        cursor.execute("INSERT into users(uid, name, pwd) VALUES (:nId,:nName,:nPW)", 
                             {"nId":newuid, "nName":newName, "nPW":newPassword})
 
         connection.commit()
-        cur.close()
-        connection.close()
 
         return login(databaseFile)
     elif userOrArtist == "/exit":
-        exit()
+        closeAndExit()
     else:
         print("Invalid command, please try again")
         return login(databaseFile)
 
 
 def startSession(id):
-    connection = sqlite3.connect(databaseFile)
-    cursor = connection.cursor()
+    global connection, cursor
 
     # Get the user's greatest sno, and add 1 to it to ensure uniqueness
     cursor.execute("SELECT MAX(sno) FROM sessions WHERE uid=?", [id])
@@ -129,10 +124,8 @@ def startSession(id):
         maxsno += 1
     
     # Start a session by inserting values into  sessions table, initialize the end date as a NULL value
-    connection.execute("INSERT into sessions(uid, sno, start, end) VALUES (:id,:s, date('now'), Null)", {"id":id, "s":maxsno})
+    cursor.execute("INSERT into sessions(uid, sno, start, end) VALUES (:id,:s, datetime('now'), Null)", {"id":id, "s":maxsno})
     connection.commit()
-    cursor.close()
-    connection.close()
 
     clearScreen()
     print("Session started successfully")
@@ -140,43 +133,32 @@ def startSession(id):
 
 
 def endSession(id, sno):
-    connection = sqlite3.connect(databaseFile)
-    cur = connection.cursor()
+    global connection, cursor
 
-    connection.execute(f"UPDATE sessions SET "
+    cursor.execute(f"UPDATE sessions SET "
                        f"end = datetime('now')"
                        f"WHERE uid = ? AND sno = ?"
                        , [id, sno])
     connection.commit()
     
-    cur.close()
-    connection.close()
     clearScreen()
     print("Session ended")
 
 
-def updateSessions(connection, data):
-    # function to update the sessions table
-
-    connection.execute(" UPDATE sessions "\
-                       "set uid = :id,"\
-                       "sno = :sn,"\
-                       "start = :st,"\
-                       "end = date('now')"\
-                       "WHERE sno = :s"
-                       , {"id":data[0], "sn":data[1], "st":data[2], "s":data[1]})
-    connection.commit()
-
-
 if __name__ == '__main__':
+
+    
+    if len(sys.argv) > 1:
+        databaseFile = sys.argv[1]
+    else:
+        databaseFile = "./miniProject1.db"
+
+    connection = sqlite3.connect(databaseFile)
+    cursor = connection.cursor()
+
 
     # Main loop for running program
     while 1:
-        if len(sys.argv) > 1:
-            databaseFile = sys.argv[1]
-        else:
-            databaseFile = "./miniProject1.db"
-
         # data stores id, loginType
         loginData = login(databaseFile)
 
@@ -242,22 +224,20 @@ if __name__ == '__main__':
                         start = input("You are not currently in a session, so this command is not valid. Start session and execute this command now? y/N: ")
                         if start.lower() == 'y':
                             sno = startSession(loginData[0][0])
-                            search.setupSearch(sqlite3.connect(databaseFile), sqlite3.connect(databaseFile).cursor(), loginData[0][0], sno)
+                            search.setupSearch(connection, cursor, loginData[0][0], sno)
                             if randomInput.lower() == "/searchsongs":  
                                 search.searchSongs()
                             else:
                                 search.searchArtists()
-                            search.cleanUpSearch()
                     else:  
-                        search.setupSearch(sqlite3.connect(databaseFile), sqlite3.connect(databaseFile).cursor(), loginData[0][0], sno)
+                        search.setupSearch(connection, cursor, loginData[0][0], sno)
                         if randomInput.lower() == "/searchsongs":  
                             search.searchSongs()
                         else:
                             search.searchArtists()
-                        search.cleanUpSearch()
                 
                 if randomInput.lower() == "/exit":
-                    exit()
+                    closeAndExit()
 
-            
+    closeAndExit()            
 
