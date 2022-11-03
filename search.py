@@ -24,6 +24,11 @@ def setupSearch(con, cur, userID, sessionID):
 
     return
 
+# Closes search session connections
+def cleanUpSearch():
+    cursor.close()
+    connection.close()
+
 
 # Clears the output in the terminal
 def clearScreen():
