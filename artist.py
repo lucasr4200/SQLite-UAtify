@@ -11,7 +11,8 @@ def getOptions():
                         f"\tEnter /fans to view your top fans\n"\
                         f"\tEnter /plists to view your top playlists\n"\
                         f"\tEnter /logout to logout\n"\
-                        f"\tEnter /quit to quit\n")
+                        f"\tEnter /quit to quit\n"
+                        f"./Uatify$ ")
     while 1:
         if (selection.lower() == "/plists" or "/fans" or "/new" or "/logout" or "/quit"):
             return selection

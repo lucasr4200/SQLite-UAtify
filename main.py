@@ -17,18 +17,6 @@ def clearScreen():
     return
 
 
-# Creates a database connection
-def createDatabaseConnection(databaseFile):
-    connection = None
-    try:
-        connection = sqlite3.connect(databaseFile)
-    except Error as error:
-        print(error)
-    finally:
-        if connection:
-            connection.close()
-
-
 def login(databaseFile):
     # Decide whether to activate user or artist login
     clearScreen()
@@ -188,7 +176,6 @@ if __name__ == '__main__':
             databaseFile = sys.argv[1]
         else:
             databaseFile = "./miniProject1.db"
-        createDatabaseConnection(databaseFile)
 
         # data stores id, loginType
         loginData = login(databaseFile)
@@ -210,7 +197,7 @@ if __name__ == '__main__':
                                 f"\n\t/searchsongs"\
                                 f"\n\t/searchartists"
 
-                actionPrompt = f"\nEnter an action: "
+                actionPrompt = f"\n./Uatify$ "
                 print(userMenu)
                 if sno == 0:
                     print(initialMenu)
@@ -237,6 +224,8 @@ if __name__ == '__main__':
                                 endSession(loginData[0][0], sno)
                                 sno = startSession(loginData[0][0])
                             elif restart.lower() == 'n':
+                                pass
+                            else:
                                 sno = 0
                 
                 #end a session if one is open            
@@ -247,32 +236,25 @@ if __name__ == '__main__':
                         endSession(loginData[0][0], sno)
                         sno = 0
                     
-                # search for songs using function from search.py
-                if randomInput.lower() == "/searchsongs":
+                # search for songs or artists using function from search.py
+                if (randomInput.lower() == "/searchsongs") or (randomInput.lower() == "/searchartists"):
                     if sno == 0:
                         start = input("You are not currently in a session, so this command is not valid. Start session and execute this command now? y/N: ")
-                        if start.lower == 'y':
+                        if start.lower() == 'y':
                             sno = startSession(loginData[0][0])
                             search.setupSearch(sqlite3.connect(databaseFile), sqlite3.connect(databaseFile).cursor(), loginData[0][0], sno)
-                            search.searchSongs()
+                            if randomInput.lower() == "/searchsongs":  
+                                search.searchSongs()
+                            else:
+                                search.searchArtists()
                             search.cleanUpSearch()
-                    else:    
+                    else:  
                         search.setupSearch(sqlite3.connect(databaseFile), sqlite3.connect(databaseFile).cursor(), loginData[0][0], sno)
-                        search.searchSongs()
-                        search.cleanUpSearch()
-
-
-                # search for artists using function from search.py
-                if randomInput.lower() == "/searchartists":
-                    if sno == 0:
-                        start = input("You are not currently in a session, so this command is not valid. Start session and execute this command now? y/N: ")
-                        if start.lower == 'y':
-                            sno = startSession(loginData[0][0])
-                            search.setupSearch(sqlite3.connect(databaseFile), sqlite3.connect(databaseFile).cursor(), loginData[0][0],sno)
+                        if randomInput.lower() == "/searchsongs":  
+                            search.searchSongs()
+                        else:
                             search.searchArtists()
-                    else:
-                        search.setupSearch(sqlite3.connect(databaseFile), sqlite3.connect(databaseFile).cursor(), loginData[0][0],sno)
-                        search.searchArtists()
+                        search.cleanUpSearch()
                 
                 if randomInput.lower() == "/exit":
                     exit()
